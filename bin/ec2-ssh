@@ -4,13 +4,14 @@ set -e
 
 usage() {
     cat<<EOF
-Usage: ec2-ssh [-k KEY] [-s SECRET] [-r REGION] [-t TAG] <instance-name>
+Usage: ec2-ssh [-i SSH_KEY] [-k KEY] [-s SECRET] [-r REGION] [-t TAG] <instance-name>
 
 Open an ssh connection to an EC2 instance where <instance-name>=tag:value.
 The 'tag:' portion of <instance-name> is optional, and defaults to 'Name'.
 For a list of instances, run ec2-host without any paramteres
 
   -h            display this help and exit
+  -i, SSH_KEY   SSH identity key
   -k, KEY       Amazon EC2 Key, defaults to \$AWS_ACCESS_KEY_ID
   -s, SECRET    Amazon EC2 Secret, defaults to \$AWS_SECRET_ACCESS_KEY
   -r, REGION    Amazon EC2 Region, defaults to us-east-1
@@ -23,13 +24,15 @@ test $# -eq 0 && { usage; exit; }
 
 # Process options
 cmd="ec2-host"
-while getopts ":hk:s:r:t:" opt; do
+identity=""
+while getopts ":hk:s:r:t:i:" opt; do
     case $opt in
         h  ) usage; exit 1;;
         k  ) cmd="$cmd -k $OPTARG";;
         s  ) cmd="$cmd -s $OPTARG";;
         r  ) cmd="$cmd -r $OPTARG";;
         t  ) cmd="$cmd -t $OPTARG";;
+        i  ) identity="-i $OPTARG";;
         \? ) usage; exit 1
     esac
 done
@@ -59,7 +62,7 @@ else
 fi
 
 # get host from ec2-host command
-host=$(eval "$cmd $inst")
+host=$(eval "$cmd $value")
 
 # pass all other parameters (${@:2}) to ssh allowing
 # things like: ec2-ssh nginx uptime
@@ -67,4 +70,4 @@ cmd="echo \\\". ~/.bashrc && PS1='\[\e]0;$inst: \w\\\a\]\[\\\033[01;32m\]$inst\[
 if test "${@:2}"; then
     cmd="${@:2}"
 fi
-test -n "$host" && echo "Connecting to $host." && exec sh -c "ssh -t $user@$host \"$cmd\""
+test -n "$host" && echo "Connecting to $host." && exec sh -c "ssh -t $identity $user@$host \"$cmd\""
